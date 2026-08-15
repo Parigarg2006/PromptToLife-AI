@@ -50,6 +50,7 @@ export async function generateMicroApp(
       signal: controller.signal,
       body: JSON.stringify({
         prompt,
+        query: prompt,
         template_id: templateId,
         current_code: currentCode
       }),
@@ -59,7 +60,9 @@ export async function generateMicroApp(
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ detail: 'Generation request failed' }));
-      throw new Error(errorData.detail || 'Failed to process prompt');
+      const msg = errorData.detail || errorData.error || errorData.message || 'Failed to process prompt';
+      console.error('Backend Error Response:', errorData);
+      throw new Error(msg);
     }
 
     const data: GenerateResult = await res.json();
@@ -76,7 +79,7 @@ export async function generateMicroApp(
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET' });
+    const res = await fetch(`${API_BASE_URL}/health`, { method: 'GET' });
     return res.ok;
   } catch {
     return false;
