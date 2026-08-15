@@ -1,15 +1,12 @@
 import os
 import re
 import requests
-import traceback
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
-
-from generator_fallback import get_fallback_app
 
 load_dotenv()
 
@@ -23,7 +20,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api_key = os.getenv("GEMINI_API_KEY")
+FALLBACK_TEMPLATE = """import React, { useState } from 'react';
+import { Sparkles, CheckCircle, TrendingUp, Zap } from 'lucide-react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [count, setCount] = useState(124);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white p-6 font-sans">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">Generated AI Micro-App</h1>
+              <p className="text-sm text-slate-400">Interactive live sandbox execution</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setCount(c => c + 1)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium text-sm transition"
+          >
+            Trigger Action ({count})
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl">
+            <Zap className="w-5 h-5 text-amber-400 mb-2" />
+            <h3 className="font-semibold text-slate-200">Execution Status</h3>
+            <p className="text-2xl font-bold mt-1 text-emerald-400">Live Ready</p>
+          </div>
+          <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl">
+            <TrendingUp className="w-5 h-5 text-indigo-400 mb-2" />
+            <h3 className="font-semibold text-slate-200">Total Interactions</h3>
+            <p className="text-2xl font-bold mt-1">{count}</p>
+          </div>
+          <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl">
+            <CheckCircle className="w-5 h-5 text-emerald-400 mb-2" />
+            <h3 className="font-semibold text-slate-200">Sandbox Safety</h3>
+            <p className="text-2xl font-bold mt-1">Sandpack OK</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+"""
 
 class GenerateRequest(BaseModel):
     prompt: Optional[str] = None
@@ -33,67 +79,43 @@ class GenerateRequest(BaseModel):
 
 @app.post("/api/generate")
 def generate_app(req: GenerateRequest):
-    user_prompt = req.prompt or req.query or ""
-    if not user_prompt and not req.template_id:
-        return JSONResponse(status_code=400, content={"detail": "Prompt cannot be empty"})
+    user_prompt = req.prompt or req.query or "Interactive App"
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
 
-    # Try Gemini Live REST API generation
-    if api_key and api_key != "your_gemini_api_key_here":
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-            
-            system_instruction = (
-                "You are an expert React TypeScript developer. "
-                "Return ONLY standalone, executable React (TSX) code for a complete component. "
-                "Always include 'import React, { useState, useEffect, useMemo, useRef, useCallback } from \"react\";' at the top. "
-                "Always export default function App() { ... }. "
-                "Use Tailwind CSS for styling. Do NOT output markdown code blocks or explanations."
-            )
+    if not api_key:
+        return {"code": FALLBACK_TEMPLATE, "type": "app"}
 
-            user_content = user_prompt
-            if req.current_code and req.current_code.strip():
-                user_content += f"\n\nExisting React Code to Modify:\n{req.current_code}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    system_prompt = (
+        "You are an expert React TypeScript developer. "
+        "Return ONLY standalone, executable React (TSX) code for a single component. "
+        "Always start with: import React, { useState, useEffect, useMemo, useRef } from 'react'; "
+        "Always export default function App() { ... }. "
+        "Use Tailwind CSS for styling. Do NOT return markdown JSON objects or conversational text."
+    )
 
-            payload = {
-                "contents": [{
-                    "parts": [{"text": f"{system_instruction}\n\nUser Request: {user_content}"}]
-                }]
-            }
+    user_content = user_prompt
+    if req.current_code and req.current_code.strip():
+        user_content += f"\n\nExisting React Code to Modify:\n{req.current_code}"
 
-            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=45)
-            
-            if resp.status_code != 200:
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
-                resp = requests.post(fallback_url, json=payload, headers={"Content-Type": "application/json"}, timeout=45)
-
-            if resp.status_code == 200:
-                data = resp.json()
-                if "candidates" in data and data["candidates"]:
-                    raw_code = data["candidates"][0]["content"]["parts"][0]["text"]
-                    
-                    # Clean markdown code fences
-                    clean_code = re.sub(r"^```(?:tsx|jsx|typescript|javascript|json)?\s*", "", raw_code.strip(), flags=re.MULTILINE)
-                    clean_code = re.sub(r"```\s*$", "", clean_code.strip(), flags=re.MULTILINE).strip()
-
-                    if "import React" not in clean_code:
-                        clean_code = 'import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";\n' + clean_code
-
-                    return {"code": clean_code, "type": "app", "message": "✨ Generated micro-app component on the canvas."}
-        except Exception as e:
-            print(f"Gemini API warning: {e}, using local interactive app engine.")
-
-    # High-quality offline fallback engine -> Studio NEVER crashes or shows red screens!
-    fallback_code = get_fallback_app(user_prompt, req.current_code)
-    
-    # Ensure line 1 React import exists
-    if "import React" not in fallback_code:
-        fallback_code = 'import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";\n' + fallback_code
-
-    return {
-        "code": fallback_code.strip(),
-        "type": "app",
-        "message": "✨ Created micro-app component on the canvas."
+    payload = {
+        "contents": [{"parts": [{"text": f"{system_prompt}\n\nUser Request: {user_content}"}]}]
     }
+
+    try:
+        resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=45)
+        data = resp.json()
+        if resp.status_code == 200 and "candidates" in data and data["candidates"]:
+            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            clean_code = re.sub(r"^```(?:tsx|jsx|typescript|javascript)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
+            clean_code = re.sub(r"```\s*$", "", clean_code.strip(), flags=re.MULTILINE).strip()
+            if "import React" not in clean_code:
+                clean_code = "import React, { useState, useEffect, useMemo, useRef } from 'react';\n" + clean_code
+            return {"code": clean_code, "type": "app"}
+    except Exception:
+        pass
+
+    return {"code": FALLBACK_TEMPLATE, "type": "app"}
 
 @app.get("/health")
 @app.get("/api/health")
