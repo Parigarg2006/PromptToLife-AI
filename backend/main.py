@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
 
+from generator_fallback import get_fallback_app
+
 load_dotenv()
 
 app = FastAPI()
@@ -77,19 +79,26 @@ class GenerateRequest(BaseModel):
     template_id: Optional[str] = None
     current_code: Optional[str] = None
 
+candidate_models = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-pro"
+]
+
 @app.post("/api/generate")
 def generate_app(req: GenerateRequest):
     user_prompt = req.prompt or req.query or "Interactive App"
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
 
-    if not api_key:
-        return {"code": FALLBACK_TEMPLATE, "type": "app"}
+    if not api_key or api_key == "your_gemini_api_key_here":
+        return {"code": get_fallback_app(user_prompt, req.current_code), "type": "app"}
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     system_prompt = (
         "You are an expert React TypeScript developer. "
         "Return ONLY standalone, executable React (TSX) code for a single component. "
-        "Always start with: import React, { useState, useEffect, useMemo, useRef } from 'react'; "
+        "Always start with: import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; "
         "Always export default function App() { ... }. "
         "Use Tailwind CSS for styling. Do NOT return markdown JSON objects or conversational text."
     )
@@ -102,20 +111,33 @@ def generate_app(req: GenerateRequest):
         "contents": [{"parts": [{"text": f"{system_prompt}\n\nUser Request: {user_content}"}]}]
     }
 
-    try:
-        resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=45)
-        data = resp.json()
-        if resp.status_code == 200 and "candidates" in data and data["candidates"]:
-            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
-            clean_code = re.sub(r"^```(?:tsx|jsx|typescript|javascript)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
-            clean_code = re.sub(r"```\s*$", "", clean_code.strip(), flags=re.MULTILINE).strip()
-            if "import React" not in clean_code:
-                clean_code = "import React, { useState, useEffect, useMemo, useRef } from 'react';\n" + clean_code
-            return {"code": clean_code, "type": "app"}
-    except Exception:
-        pass
+    # Iterate through model candidates to fetch live response from Gemini API
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=30)
+            print(f"GEMINI API ({model_name}) STATUS:", resp.status_code, resp.text[:300])
 
-    return {"code": FALLBACK_TEMPLATE, "type": "app"}
+            if resp.status_code == 200:
+                data = resp.json()
+                if "candidates" in data and data["candidates"]:
+                    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    clean_code = re.sub(r"^```(?:tsx|jsx|typescript|javascript|json)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
+                    clean_code = re.sub(r"```\s*$", "", clean_code.strip(), flags=re.MULTILINE).strip()
+                    
+                    if "import React" not in clean_code:
+                        clean_code = "import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';\n" + clean_code
+                    
+                    return {"code": clean_code, "type": "app", "message": "✨ Generated micro-app component on the canvas."}
+        except Exception as err:
+            print(f"Candidate {model_name} error: {err}")
+
+    # Fallback app generator if all candidates fail
+    fallback_code = get_fallback_app(user_prompt, req.current_code)
+    if "import React" not in fallback_code:
+        fallback_code = "import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';\n" + fallback_code
+
+    return {"code": fallback_code, "type": "app", "message": "✨ Created micro-app component on the canvas."}
 
 @app.get("/health")
 @app.get("/api/health")
