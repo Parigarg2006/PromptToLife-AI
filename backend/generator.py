@@ -166,9 +166,9 @@ export default function App() {
 }
 
 def clean_generated_code(raw_text: str) -> str:
-    """Strips markdown fences, ensures React imports, and verifies export default function App."""
+    """Strips markdown fences, extracts code from JSON strings if present, and ensures React imports."""
     text = raw_text.strip()
-    pattern = r"```(?:jsx|tsx|javascript|typescript|js|ts|html)?\s*(.*?)\s*```"
+    pattern = r"```(?:jsx|tsx|javascript|typescript|js|ts|json)?\s*(.*?)\s*```"
     match = re.search(pattern, text, re.DOTALL)
     if match:
         text = match.group(1).strip()
@@ -177,6 +177,15 @@ def clean_generated_code(raw_text: str) -> str:
         text = re.sub(r"\n?```$", "", text)
     
     code = text.strip()
+
+    # If raw code payload is wrapped inside a JSON string {"type":"app","code":"..."}
+    if code.startswith("{") and code.endswith("}"):
+        try:
+            parsed = json.loads(code)
+            if isinstance(parsed, dict) and "code" in parsed and isinstance(parsed["code"], str):
+                return clean_generated_code(parsed["code"])
+        except Exception:
+            pass
 
     # Ensure React and hooks are imported at line 1
     react_import_statement = "import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';"
@@ -229,7 +238,6 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
 
             full_instructions = f"{SYSTEM_ROUTER_PROMPT}\n\n{context_prompt}"
             
-            # Low temperature (0.2) + max_output_tokens (4096) + thinking_budget=0 for ultra-fast generation
             try:
                 response = client.models.generate_content(
                     model='gemini-3.5-flash',
@@ -256,8 +264,11 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
             try:
                 parsed = json.loads(cleaned_res)
                 if parsed.get("type") == "app" and "code" in parsed:
-                    parsed["code"] = clean_generated_code(parsed["code"])
-                    return parsed
+                    return {
+                        "type": "app",
+                        "code": clean_generated_code(parsed["code"]),
+                        "message": parsed.get("message", "✨ Created your micro-app on the canvas.")
+                    }
                 elif parsed.get("type") == "text" and "content" in parsed:
                     return parsed
             except Exception:

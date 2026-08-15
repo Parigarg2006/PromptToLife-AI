@@ -11,6 +11,43 @@ import {
   TemplateItem,
 } from '@/lib/api';
 
+/**
+ * Robust code extractor ensuring Sandpack receives pure TSX code
+ * without raw JSON strings or markdown fence wrappers.
+ */
+function extractPureCode(rawPayload: string): string {
+  if (!rawPayload) return '';
+  let str = rawPayload.strip ? rawPayload.strip() : rawPayload.trim();
+
+  // Strip outer markdown fence wrappers
+  const fenceRegex = /```(?:jsx|tsx|javascript|typescript|js|ts|json)?\s*([\s\S]*?)\s*```/g;
+  const match = fenceRegex.exec(str);
+  if (match && match[1]) {
+    str = match[1].trim();
+  } else {
+    str = str.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
+  }
+
+  // Attempt JSON parsing if raw payload is a stringified JSON object
+  if (str.startsWith('{') && str.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (parsed && typeof parsed.code === 'string') {
+        return extractPureCode(parsed.code);
+      }
+    } catch {
+      // Continue if not valid JSON
+    }
+  }
+
+  // Ensure React import line is present at the very top
+  if (!str.includes("from 'react'") && !str.includes('from "react"')) {
+    str = `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';\n${str}`;
+  }
+
+  return str;
+}
+
 export default function Home() {
   const [currentCode, setCurrentCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -51,7 +88,8 @@ export default function Home() {
       const result = await generateMicroApp(promptText, templateId, currentCode);
 
       if (result.type === 'app' && result.code) {
-        setCurrentCode(result.code);
+        const cleanCode = extractPureCode(result.code);
+        setCurrentCode(cleanCode);
 
         const aiAppMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
