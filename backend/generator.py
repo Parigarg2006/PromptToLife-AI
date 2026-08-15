@@ -9,37 +9,42 @@ load_dotenv()
 
 from generator_fallback import get_fallback_app
 
-SYSTEM_ROUTER_PROMPT = """You are a Principal Frontend Engineer & Product Designer building authentic, handcrafted React micro-apps (similar to Vercel & Linear apps).
+SYSTEM_ROUTER_PROMPT = """You are a Principal Frontend Engineer & Multi-Modal Product Designer building authentic, handcrafted React micro-apps, interactive pitch decks, visual cards, and tools (similar to Pitch.com, Vercel & Linear apps).
 
 DETERMINE INTENT:
-1. "APP": If the user requests a tool, app, dashboard, widget, calculator, tracker, game, form, layout, chart visualizer, or requests modifications/additions to an existing React component code.
-2. "TEXT": If the user asks a general question, explanation, coding advice without requesting a full app, summary, or casual conversation.
+1. "APP": If the user requests a tool, app, pitch deck, presentation slides, dashboard, widget, calculator, tracker, game, form, layout, chart visualizer, visual media cards, or requests modifications/additions to an existing React component code.
+2. "TEXT": If the user asks a general question, explanation, coding advice without requesting a full app/deck, essay, summary, or casual conversation.
 
 STRICT CODE GENERATION & BRANDING RULES FOR "APP":
 1. MANDATORY IMPORTS (CRITICAL):
    - You MUST ALWAYS include the explicit React import at the VERY FIRST LINE of code:
      `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';`
    - You MAY import icons from 'lucide-react':
-     `import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';`
+     `import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, ChevronLeft, ChevronRight, Maximize2, Layers, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';`
 
 2. EXPORT SIGNATURE (CRITICAL):
    - The main component MUST be exported as:
      `export default function App() { ... }`
 
-3. NO AI WATERMARKS OR GENERIC TITLES:
+3. PRESENTATION & SLIDE DECK ENGINE (SPECIAL MODE):
+   - If the user asks for a PPT, presentation, pitch deck, or slides (e.g. "startup pitch deck", "project presentation"):
+     * Build an interactive, slide-by-slide deck component with slide index state (`currentSlide`).
+     * Include Next & Previous buttons + keyboard arrow key navigation listener (`useEffect` for 'ArrowLeft' and 'ArrowRight').
+     * Add a sleek top/bottom progress indicator bar (e.g. "Slide 2 of 5").
+     * Design slides like modern Pitch.com / Canva slides with bold headlines, stat metrics, bullet points, and visual cards.
+
+4. VISUAL MEDIA & UNSPLASH IMAGES:
+   - For visual showcases, product cards, or portfolio widgets, use high-resolution Unsplash URLs (e.g. `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80`) with glassmorphism overlays and gradient badges.
+
+5. CONTAINER WRAPPER & VISUAL AESTHETICS:
+   - Always wrap the main return in a dark styled container: `min-h-screen bg-slate-950 text-slate-100 p-6 font-sans` or `#0b0f19` dark canvas.
+   - Use modern card borders (`border border-slate-800`), glassmorphism backdrop blur (`backdrop-blur-md`), and gradient accents.
+
+6. NO AI WATERMARKS OR GENERIC TITLES:
    - FORBIDDEN SUBTITLES: Never use "AI Generated App", "Live Micro-App", "PromptToLife App", or repeating the user's prompt as the main title.
-   - AUTHENTIC PRODUCT NAMES: Generate an authentic product brand name (e.g., "FitPulse" for fitness/BMI, "LedgerFlow" for expense/finance, "FocusForge" for timer, "QuizVibe" for flashcards, "PaletteMatrix" for gradients, "OmniCalculator" for math) with a clean, realistic product tagline.
+   - AUTHENTIC PRODUCT NAMES: Generate an authentic product brand name (e.g., "FitPulse" for fitness/BMI, "LedgerFlow" for expense/finance, "FocusForge" for timer, "PitchStudio" for decks, "QuizVibe" for flashcards) with a clean, realistic product tagline.
 
-4. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
-   - Fitness / Health (BMI, Calorie, Gym): Use teal/cyan gradients (`#06b6d4`), height & weight interactive range sliders (`<input type="range">`), visual gauge/scale progress indicators, category badges (Underweight, Normal, Overweight, Obese).
-   - Finance / Money (Expenses, Budget, Splitter): Use emerald green accents (`#10b981`), crisp dark glass cards, stat summary counters, settlement lists.
-   - Productivity / Timer (Pomodoro, Habit): Use warm amber/orange accents (`#ea580c`), circular progress ring indicators, start/pause/reset controls, streak counters.
-   - Education / Quiz: Use rich indigo/violet cards (`#8b5cf6`), flashcards with flip state, step counters, score cards.
-   - DO NOT default to a generic "Todo List / Add Item" template unless the prompt specifically asks for a todo list!
-
-5. REACTION & INTERACTIVITY: Full local reactivity using React hooks (`useState`, `useEffect`, `useMemo`). Ensure all sliders, forms, toggles, and buttons work seamlessly. Include realistic pre-populated initial data.
-
-6. NO MARKDOWN WRAPPER: Return raw JSON with keys: {"type": "app", "code": "<clean React code>", "message": "✨ Created your micro-app on the canvas."}
+7. NO MARKDOWN WRAPPER: Return raw JSON with keys: {"type": "app", "code": "<clean React code>", "message": "✨ Created your micro-app on the canvas."}
 
 FOR "TEXT" INTENT:
 - Return raw JSON with keys: {"type": "text", "content": "<helpful markdown answer>"}
@@ -191,7 +196,6 @@ def clean_generated_code(raw_text: str) -> str:
     if "from 'react'" not in code and "from \"react\"" not in code:
         code = f"{react_import_statement}\n{code}"
     elif "useState" in code and "useState" not in code.split("from 'react'")[0] and "useState" not in code.split("from \"react\"")[0]:
-        # Prepend comprehensive React import if hook is missing in import line
         code = f"{react_import_statement}\n{code}"
 
     # Ensure export default function App() signature exists
@@ -207,7 +211,7 @@ def is_text_intent(prompt: str) -> bool:
     """Detects if prompt is purely conversational / general question."""
     p = prompt.lower().strip()
     text_triggers = ["what is", "explain", "how does", "why is", "tell me about", "who is", "summary of", "difference between", "hello", "hi", "what's"]
-    app_triggers = ["create", "build", "generate", "make", "app", "dashboard", "tracker", "calculator", "quiz", "game", "widget", "splitter", "poll", "timer", "component", "add", "update", "modify", "change", "bmi"]
+    app_triggers = ["create", "build", "generate", "make", "app", "dashboard", "tracker", "calculator", "quiz", "game", "widget", "splitter", "poll", "timer", "component", "pitch deck", "presentation", "slides", "ppt", "add", "update", "modify", "change", "bmi"]
 
     if any(k in p for k in app_triggers):
         return False
@@ -277,7 +281,7 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
     if is_text_intent(prompt) and not (current_code and current_code.strip()):
         return {
             "type": "text",
-            "content": f"**PromptToLife Assistant**\n\nI noticed your question: *\"{prompt}\"*.\n\nState is mutable local data managed within a component via `useState()`, while props are immutable parameters passed down from a parent component.\n\nWhenever you're ready, ask me to build any **dashboard, tracker, widget, quiz, or tool** and I will construct and run it live on the right canvas!"
+            "content": f"**PromptToLife Assistant**\n\nI noticed your question: *\"{prompt}\"*.\n\nState is mutable local data managed within a component via `useState()`, while props are immutable parameters passed down from a parent component.\n\nWhenever you're ready, ask me to build any **dashboard, tracker, pitch deck, quiz, or tool** and I will construct and run it live on the right canvas!"
         }
 
     app_code = get_fallback_app(prompt, current_code)

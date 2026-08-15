@@ -253,6 +253,9 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
             recompileMode: 'immediate',
             visibleFiles: ['/App.tsx'],
             activeFile: '/App.tsx',
+            externalResources: [
+              'https://cdn.tailwindcss.com',
+            ],
           }}
         >
           <div className="flex-1 w-full h-full relative overflow-hidden bg-darkcanvas flex items-center justify-center">
