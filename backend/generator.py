@@ -207,7 +207,7 @@ def is_text_intent(prompt: str) -> bool:
     return False
 
 def route_and_generate(prompt: str, current_code: Optional[str] = None, template_id: Optional[str] = None) -> Dict[str, Any]:
-    """Smart intent router using ultra-fast gemini-3.5-flash with zero thinking budget for sub-3s response speed."""
+    """Smart intent router using ultra-fast gemini-3.5-flash with low temperature & 4096 max tokens for sub-3s response speed."""
     if template_id and template_id in PRESET_TEMPLATES:
         return {
             "type": "app",
@@ -229,20 +229,25 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
 
             full_instructions = f"{SYSTEM_ROUTER_PROMPT}\n\n{context_prompt}"
             
-            # Fast gemini-3.5-flash model with thinking_budget=0 for ultra-fast generation
+            # Low temperature (0.2) + max_output_tokens (4096) + thinking_budget=0 for ultra-fast generation
             try:
                 response = client.models.generate_content(
                     model='gemini-3.5-flash',
                     contents=full_instructions,
                     config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        max_output_tokens=4096,
                         thinking_config=types.ThinkingConfig(thinking_budget=0)
                     )
                 )
             except Exception:
-                # Fallback to gemini-1.5-flash or gemini-2.5-flash
                 response = client.models.generate_content(
                     model='gemini-1.5-flash',
-                    contents=full_instructions
+                    contents=full_instructions,
+                    config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        max_output_tokens=4096
+                    )
                 )
 
             raw_res = response.text
