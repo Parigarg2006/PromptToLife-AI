@@ -11,26 +11,23 @@ from generator_fallback import get_fallback_app
 
 SYSTEM_ROUTER_PROMPT = """You are an ultra-fast Principal Frontend Engineer & Product Designer. Output pure TSX code directly without conversational filler.
 
+STRICT MANDATORY IMPORTS (CRITICAL - MUST BE LINE 1 AND LINE 2):
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, ChevronLeft, ChevronRight, Maximize2, Layers, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';
+
 DETERMINE INTENT:
 1. "APP": If the user requests a tool, app, pitch deck, presentation slides, dashboard, widget, calculator, tracker, game, form, layout, chart visualizer, visual media cards, or requests modifications/additions to an existing React component code.
 2. "TEXT": If the user asks a general question, explanation, coding advice without requesting a full app/deck, essay, summary, or casual conversation.
 
 STRICT CODE GENERATION RULES FOR "APP":
-1. MANDATORY IMPORTS (CRITICAL - ALWAYS AT LINE 1):
-   `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';`
-   `import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, ChevronLeft, ChevronRight, Maximize2, Layers, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';`
-
-2. EXPORT SIGNATURE: Must export `export default function App() { ... }`.
-
-3. NO CONVERSATIONAL FILLER OR WATERMARKS: Output clean JSON with keys: {"type": "app", "code": "<clean React TSX code>", "message": "✨ Created your micro-app on the canvas."}
-
-4. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
+1. EXPORT SIGNATURE: Must export `export default function App() { ... }`.
+2. NO CONVERSATIONAL FILLER OR WATERMARKS: Output clean JSON with keys: {"type": "app", "code": "<clean React TSX code>", "message": "✨ Created your micro-app on the canvas."}
+3. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
    - Fitness / Health (BMI, Calorie, Gym): Teal/cyan gradients (`#06b6d4`), height & weight range sliders (`<input type="range">`), BMI gauge scale indicators.
    - Finance / Money (Expenses, Budget, Splitter): Emerald green accents (`#10b981`), crisp dark glass cards, stat summary counters.
    - Productivity / Timer (Pomodoro, Habit): Warm amber/orange accents (`#ea580c`), circular progress ring indicators, start/pause/reset controls.
    - Presentation / Pitch Deck: Interactive slide-by-slide deck with `currentSlide` state, keyboard arrow listener, progress bar, metrics cards.
-
-5. CONTAINER WRAPPER & VISUAL AESTHETICS:
+4. CONTAINER WRAPPER & VISUAL AESTHETICS:
    - Always wrap main return in a dark container: `min-h-screen bg-slate-950 text-slate-100 p-6 font-sans` or `#0b0f19` dark canvas with Tailwind CSS classes.
 
 FOR "TEXT" INTENT:
@@ -166,7 +163,7 @@ export default function App() {
 }
 
 def clean_generated_code(raw_text: str) -> str:
-    """Strips markdown fences, extracts code from JSON strings if present, and ensures React imports."""
+    """Strips markdown fences, extracts code from JSON strings if present, and ensures React hook imports at line 1."""
     text = raw_text.strip()
     pattern = r"```(?:jsx|tsx|javascript|typescript|js|ts|json)?\s*(.*?)\s*```"
     match = re.search(pattern, text, re.DOTALL)
@@ -187,12 +184,14 @@ def clean_generated_code(raw_text: str) -> str:
         except Exception:
             pass
 
-    # Ensure React and hooks are imported at line 1
-    react_import_statement = "import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';"
-    if "from 'react'" not in code and "from \"react\"" not in code:
-        code = f"{react_import_statement}\n{code}"
+    # Replace incomplete line 1 import statements (e.g. `import React from 'react';`)
+    full_react_import = "import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';"
+    if re.search(r"import\s+React\s+from\s+['\"]react['\"];?", code):
+        code = re.sub(r"import\s+React\s+from\s+['\"]react['\"];?", full_react_import, code)
+    elif "from 'react'" not in code and "from \"react\"" not in code:
+        code = f"{full_react_import}\n{code}"
     elif "useState" in code and "useState" not in code.split("from 'react'")[0] and "useState" not in code.split("from \"react\"")[0]:
-        code = f"{react_import_statement}\n{code}"
+        code = f"{full_react_import}\n{code}"
 
     # Ensure export default function App() signature exists
     if "export default function App" not in code:
