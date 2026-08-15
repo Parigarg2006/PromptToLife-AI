@@ -9,32 +9,13 @@ load_dotenv()
 
 from generator_fallback import get_fallback_app
 
-SYSTEM_ROUTER_PROMPT = """You are an ultra-fast Principal Frontend Engineer & Product Designer. Output pure TSX code directly without conversational filler.
-
-STRICT MANDATORY IMPORTS (CRITICAL - MUST BE LINE 1 AND LINE 2):
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, ChevronLeft, ChevronRight, Maximize2, Layers, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';
-
-DETERMINE INTENT:
-1. "APP": If the user requests a tool, app, pitch deck, presentation slides, dashboard, widget, calculator, tracker, game, form, layout, chart visualizer, visual media cards, or requests modifications/additions to an existing React component code.
-2. "TEXT": If the user asks a general question, explanation, coding advice without requesting a full app/deck, essay, summary, or casual conversation.
-
-STRICT CODE GENERATION RULES FOR "APP":
-1. EXPORT SIGNATURE: Must export `export default function App() { ... }`.
-2. NO CONVERSATIONAL FILLER OR WATERMARKS: Output clean JSON with keys: {"type": "app", "code": "<clean React TSX code>", "message": "✨ Created your micro-app on the canvas."}
-3. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
-   - Fitness / Health (BMI, Calorie, Gym): Teal/cyan gradients (`#06b6d4`), height & weight range sliders (`<input type="range">`), BMI gauge scale indicators.
-   - Finance / Money (Expenses, Budget, Splitter): Emerald green accents (`#10b981`), crisp dark glass cards, stat summary counters.
-   - Productivity / Timer (Pomodoro, Habit): Warm amber/orange accents (`#ea580c`), circular progress ring indicators, start/pause/reset controls.
-   - Presentation / Pitch Deck: Interactive slide-by-slide deck with `currentSlide` state, keyboard arrow listener, progress bar, metrics cards.
-4. CONTAINER WRAPPER & VISUAL AESTHETICS:
-   - Always wrap main return in a dark container: `min-h-screen bg-slate-950 text-slate-100 p-6 font-sans` or `#0b0f19` dark canvas with Tailwind CSS classes.
-
-FOR "TEXT" INTENT:
-- Return raw JSON with keys: {"type": "text", "content": "<helpful markdown answer>"}
-
-IMPORTANT: Return valid raw JSON ONLY. No markdown code block backticks surrounding the JSON response.
-"""
+SYSTEM_ROUTER_PROMPT = """You are an expert React/Tailwind engineer & product designer.
+Return ONLY raw, standalone, executable React (TSX/JSX) code inside a single component.
+- ALWAYS begin with: import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+- ALWAYS export default function App() { ... }
+- Use Tailwind CSS utility classes for styling.
+- DO NOT wrap the output in JSON format (do NOT output {"type": "app", ...}).
+- Output ONLY the TypeScript/React code."""
 
 PRESET_TEMPLATES: Dict[str, Dict[str, Any]] = {
     "trip-splitter": {
@@ -163,44 +144,39 @@ export default function App() {
 }
 
 def clean_generated_code(raw_text: str) -> str:
-    """Strips markdown fences, extracts code from JSON strings if present, and ensures React hook imports at line 1."""
-    text = raw_text.strip()
-    pattern = r"```(?:jsx|tsx|javascript|typescript|js|ts|json)?\s*(.*?)\s*```"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        text = match.group(1).strip()
-    else:
-        text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
+    """Strips markdown fences, extracts code from JSON strings if present, and ensures React imports."""
+    if not raw_text:
+        return ""
     
-    code = text.strip()
+    clean_code = raw_text.strip()
+    
+    # Strip markdown code fences
+    clean_code = re.sub(r"^```(?:tsx|jsx|typescript|javascript|json)?\n?", "", clean_code, flags=re.MULTILINE)
+    clean_code = re.sub(r"```$", "", clean_code, flags=re.MULTILINE).strip()
 
     # If raw code payload is wrapped inside a JSON string {"type":"app","code":"..."}
-    if code.startswith("{") and code.endswith("}"):
+    if clean_code.startswith("{") and clean_code.endswith("}"):
         try:
-            parsed = json.loads(code)
+            parsed = json.loads(clean_code)
             if isinstance(parsed, dict) and "code" in parsed and isinstance(parsed["code"], str):
                 return clean_generated_code(parsed["code"])
         except Exception:
             pass
 
-    # Replace incomplete line 1 import statements (e.g. `import React from 'react';`)
     full_react_import = "import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';"
-    if re.search(r"import\s+React\s+from\s+['\"]react['\"];?", code):
-        code = re.sub(r"import\s+React\s+from\s+['\"]react['\"];?", full_react_import, code)
-    elif "from 'react'" not in code and "from \"react\"" not in code:
-        code = f"{full_react_import}\n{code}"
-    elif "useState" in code and "useState" not in code.split("from 'react'")[0] and "useState" not in code.split("from \"react\"")[0]:
-        code = f"{full_react_import}\n{code}"
+    if "import React" not in clean_code:
+        clean_code = f"{full_react_import}\n{clean_code}"
+    elif re.search(r"import\s+React\s+from\s+['\"]react['\"];?", clean_code):
+        clean_code = re.sub(r"import\s+React\s+from\s+['\"]react['\"];?", full_react_import, clean_code)
 
     # Ensure export default function App() signature exists
-    if "export default function App" not in code:
-        if "function App" in code:
-            code = code.replace("function App", "export default function App")
-        elif "const App =" in code:
-            code = code.replace("const App =", "export default function App =")
+    if "export default function App" not in clean_code:
+        if "function App" in clean_code:
+            clean_code = clean_code.replace("function App", "export default function App")
+        elif "const App =" in clean_code:
+            clean_code = clean_code.replace("const App =", "export default function App =")
 
-    return code.strip()
+    return clean_code.strip()
 
 def is_text_intent(prompt: str) -> bool:
     """Detects if prompt is purely conversational / general question."""
@@ -215,7 +191,7 @@ def is_text_intent(prompt: str) -> bool:
     return False
 
 def route_and_generate(prompt: str, current_code: Optional[str] = None, template_id: Optional[str] = None) -> Dict[str, Any]:
-    """Smart intent router using ultra-fast gemini-3.5-flash with low temperature & 4096 max tokens for sub-3s response speed."""
+    """Smart intent router using ultra-fast gemini-3.5-flash for sub-3s response speed."""
     if template_id and template_id in PRESET_TEMPLATES:
         return {
             "type": "app",
@@ -257,33 +233,14 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
                     )
                 )
 
-            raw_res = response.text
-            cleaned_res = clean_generated_code(raw_res)
+            raw_res = response.text or ""
+            clean_code = clean_generated_code(raw_res)
 
-            try:
-                parsed = json.loads(cleaned_res)
-                if parsed.get("type") == "app" and "code" in parsed:
-                    return {
-                        "type": "app",
-                        "code": clean_generated_code(parsed["code"]),
-                        "message": parsed.get("message", "✨ Created your micro-app on the canvas.")
-                    }
-                elif parsed.get("type") == "text" and "content" in parsed:
-                    return parsed
-            except Exception:
-                pass
-
-            if "export default function App" in raw_res or "function App" in raw_res or "useState" in raw_res:
-                return {
-                    "type": "app",
-                    "code": clean_generated_code(raw_res),
-                    "message": "✨ Refined micro-app component on the canvas." if current_code else "✨ Generated micro-app component on the canvas."
-                }
-            else:
-                return {
-                    "type": "text",
-                    "content": raw_res.strip()
-                }
+            return {
+                "type": "app",
+                "code": clean_code,
+                "message": "✨ Refined micro-app component on the canvas." if current_code else "✨ Generated micro-app component on the canvas."
+            }
         except Exception as err:
             print(f"Gemini API warning: {err}, falling back to local intent router.")
 
