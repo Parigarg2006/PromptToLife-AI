@@ -35,6 +35,45 @@ const THINKING_STEPS = [
   'Rendering live Sandpack iframe sandbox...',
 ];
 
+/**
+ * Double-layered code sanitizer shield ensuring Sandpack receives pure TSX
+ * and never receives a raw JSON wrapper object or stringified JSON payload.
+ */
+function extractCleanTsx(input: any): string {
+  if (!input) return '';
+  let cleanCode: any = input;
+
+  // 1. If input is an object, get .code
+  if (typeof cleanCode === 'object' && cleanCode !== null) {
+    cleanCode = cleanCode.code || cleanCode.component || '';
+  } else if (typeof cleanCode === 'string') {
+    // 2. If it is a stringified JSON like {"type": "app", "code": "..."}, parse it
+    try {
+      const parsed = JSON.parse(cleanCode);
+      if (parsed && typeof parsed === 'object') {
+        cleanCode = parsed.code || parsed.component || cleanCode;
+      }
+    } catch (e) {
+      // Not JSON, proceed normally
+    }
+  }
+
+  // 3. Strip markdown code fences if present (```tsx, ```jsx, ```json, ```)
+  if (typeof cleanCode === 'string') {
+    cleanCode = cleanCode
+      .replace(/^```[a-zA-Z]*\n/gm, '')
+      .replace(/```$/gm, '')
+      .trim();
+  }
+
+  // 4. Ensure React import line is present at line 1
+  if (typeof cleanCode === 'string' && cleanCode.length > 0 && !cleanCode.includes("from 'react'") && !cleanCode.includes('from "react"')) {
+    cleanCode = `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';\n${cleanCode}`;
+  }
+
+  return typeof cleanCode === 'string' ? cleanCode.trim() : '';
+}
+
 const CustomSandpackToolbar = ({
   activeTab,
   setActiveTab,
@@ -211,6 +250,8 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
   const [zoomScale, setZoomScale] = useState<number>(1.0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  const sanitizedCode = extractCleanTsx(code);
+
   useEffect(() => {
     let interval: any = null;
     if (isLoading) {
@@ -233,7 +274,7 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const hasCode = Boolean(code && code.trim().length > 0);
+  const hasCode = Boolean(sanitizedCode && sanitizedCode.length > 0);
 
   return (
     <div className={`h-full w-full flex flex-col bg-darkcanvas overflow-hidden relative font-sans ${isFullscreen ? 'fixed inset-0 z-50 bg-darkcanvas' : ''}`}>
@@ -243,7 +284,7 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
         setActiveTab={setActiveTab}
         viewport={viewport}
         setViewport={setViewport}
-        code={code}
+        code={sanitizedCode}
         onResetPreview={handleResetPreview}
         hasCode={hasCode}
         onTriggerToast={handleTriggerToast}
@@ -300,7 +341,7 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
           template="react-ts"
           theme="dark"
           files={{
-            '/App.tsx': code,
+            '/App.tsx': sanitizedCode,
           }}
           customSetup={{
             dependencies: {
