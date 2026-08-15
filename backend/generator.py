@@ -16,18 +16,30 @@ DETERMINE INTENT:
 2. "TEXT": If the user asks a general question, explanation, coding advice without requesting a full app, summary, or casual conversation.
 
 STRICT CODE GENERATION & BRANDING RULES FOR "APP":
-1. EXPORT SIGNATURE: Must export `export default function App() { ... }`.
-2. NO AI WATERMARKS OR GENERIC TITLES:
+1. MANDATORY IMPORTS (CRITICAL):
+   - You MUST ALWAYS include the explicit React import at the VERY FIRST LINE of code:
+     `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';`
+   - You MAY import icons from 'lucide-react':
+     `import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';`
+
+2. EXPORT SIGNATURE (CRITICAL):
+   - The main component MUST be exported as:
+     `export default function App() { ... }`
+
+3. NO AI WATERMARKS OR GENERIC TITLES:
    - FORBIDDEN SUBTITLES: Never use "AI Generated App", "Live Micro-App", "PromptToLife App", or repeating the user's prompt as the main title.
    - AUTHENTIC PRODUCT NAMES: Generate an authentic product brand name (e.g., "FitPulse" for fitness/BMI, "LedgerFlow" for expense/finance, "FocusForge" for timer, "QuizVibe" for flashcards, "PaletteMatrix" for gradients, "OmniCalculator" for math) with a clean, realistic product tagline.
-3. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
+
+4. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
    - Fitness / Health (BMI, Calorie, Gym): Use teal/cyan gradients (`#06b6d4`), height & weight interactive range sliders (`<input type="range">`), visual gauge/scale progress indicators, category badges (Underweight, Normal, Overweight, Obese).
    - Finance / Money (Expenses, Budget, Splitter): Use emerald green accents (`#10b981`), crisp dark glass cards, stat summary counters, settlement lists.
    - Productivity / Timer (Pomodoro, Habit): Use warm amber/orange accents (`#ea580c`), circular progress ring indicators, start/pause/reset controls, streak counters.
    - Education / Quiz: Use rich indigo/violet cards (`#8b5cf6`), flashcards with flip state, step counters, score cards.
    - DO NOT default to a generic "Todo List / Add Item" template unless the prompt specifically asks for a todo list!
-4. REACTION & INTERACTIVITY: Full local reactivity using React hooks (`useState`, `useEffect`, `useMemo`). Ensure all sliders, forms, toggles, and buttons work seamlessly. Include realistic pre-populated initial data.
-5. NO MARKDOWN WRAPPER: Return raw JSON with keys: {"type": "app", "code": "<clean React code>", "message": "✨ Created your micro-app on the canvas."}
+
+5. REACTION & INTERACTIVITY: Full local reactivity using React hooks (`useState`, `useEffect`, `useMemo`). Ensure all sliders, forms, toggles, and buttons work seamlessly. Include realistic pre-populated initial data.
+
+6. NO MARKDOWN WRAPPER: Return raw JSON with keys: {"type": "app", "code": "<clean React code>", "message": "✨ Created your micro-app on the canvas."}
 
 FOR "TEXT" INTENT:
 - Return raw JSON with keys: {"type": "text", "content": "<helpful markdown answer>"}
@@ -162,7 +174,7 @@ export default function App() {
 }
 
 def clean_generated_code(raw_text: str) -> str:
-    """Strips markdown fences (```jsx / ```tsx / ```) and prose."""
+    """Strips markdown fences, ensures React imports, and verifies export default function App."""
     text = raw_text.strip()
     pattern = r"```(?:jsx|tsx|javascript|typescript|js|ts|html)?\s*(.*?)\s*```"
     match = re.search(pattern, text, re.DOTALL)
@@ -171,7 +183,25 @@ def clean_generated_code(raw_text: str) -> str:
     else:
         text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
         text = re.sub(r"\n?```$", "", text)
-    return text.strip()
+    
+    code = text.strip()
+
+    # Ensure React and hooks are imported
+    react_import_statement = "import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';"
+    if "from 'react'" not in code and "from \"react\"" not in code:
+        code = f"{react_import_statement}\n{code}"
+    elif "useState" in code and "useState" not in code.split("from 'react'")[0] and "useState" not in code.split("from \"react\"")[0]:
+        # Prepend comprehensive React import if hook is missing in import line
+        code = f"{react_import_statement}\n{code}"
+
+    # Ensure export default function App() signature exists
+    if "export default function App" not in code:
+        if "function App" in code:
+            code = code.replace("function App", "export default function App")
+        elif "const App =" in code:
+            code = code.replace("const App =", "export default function App =")
+
+    return code.strip()
 
 def is_text_intent(prompt: str) -> bool:
     """Detects if prompt is purely conversational / general question."""
@@ -208,7 +238,6 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
 
             full_instructions = f"{SYSTEM_ROUTER_PROMPT}\n\n{context_prompt}"
             
-            # Fast gemini-3.5-flash execution by disabling thinking budget for sub-3 second generation
             response = client.models.generate_content(
                 model='gemini-3.5-flash',
                 contents=full_instructions,
@@ -218,8 +247,8 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
             )
 
             raw_res = response.text
-
             cleaned_res = clean_generated_code(raw_res)
+
             try:
                 parsed = json.loads(cleaned_res)
                 if parsed.get("type") == "app" and "code" in parsed:
@@ -230,7 +259,7 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
             except Exception:
                 pass
 
-            if "export default function App" in raw_res or "function App" in raw_res:
+            if "export default function App" in raw_res or "function App" in raw_res or "useState" in raw_res:
                 return {
                     "type": "app",
                     "code": clean_generated_code(raw_res),
@@ -254,6 +283,6 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
     app_code = get_fallback_app(prompt, current_code)
     return {
         "type": "app",
-        "code": app_code,
+        "code": clean_generated_code(app_code),
         "message": "✨ Updated micro-app component on the canvas." if current_code else "✨ Created micro-app component on the canvas."
     }
