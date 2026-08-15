@@ -17,6 +17,10 @@ import {
   Check,
   RotateCcw,
   Sparkles,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 interface CodeCanvasProps {
@@ -40,6 +44,10 @@ const CustomSandpackToolbar = ({
   onResetPreview,
   hasCode,
   onTriggerToast,
+  zoomScale,
+  setZoomScale,
+  isFullscreen,
+  setIsFullscreen,
 }: {
   activeTab: 'preview' | 'code';
   setActiveTab: (tab: 'preview' | 'code') => void;
@@ -49,6 +57,10 @@ const CustomSandpackToolbar = ({
   onResetPreview: () => void;
   hasCode: boolean;
   onTriggerToast: (msg: string) => void;
+  zoomScale: number;
+  setZoomScale: React.Dispatch<React.SetStateAction<number>>;
+  isFullscreen: boolean;
+  setIsFullscreen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -58,6 +70,14 @@ const CustomSandpackToolbar = ({
     setCopied(true);
     onTriggerToast('Code copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleZoomIn = () => {
+    setZoomScale((prev) => Math.min(prev + 0.15, 1.5));
+  };
+
+  const handleZoomOut = () => {
+    setZoomScale((prev) => Math.max(prev - 0.15, 0.65));
   };
 
   return (
@@ -98,14 +118,37 @@ const CustomSandpackToolbar = ({
         </div>
       </div>
 
-      {/* Essential Minimal Controls: Viewport Switcher [🖥️ / 📱], Reset, Copy Code */}
+      {/* Viewport, Zoom Controls, Reset, Copy Code, Fullscreen */}
       <div className="flex items-center gap-2">
-        {/* Device Viewport Switcher */}
+        {/* Zoom Controls */}
+        <div className="hidden md:flex items-center gap-1 bg-darkcanvas p-1 rounded-xl border border-warm-800">
+          <button
+            onClick={handleZoomOut}
+            disabled={!hasCode || zoomScale <= 0.7}
+            title="Zoom Out"
+            className="p-1 rounded-lg text-sand-400 hover:text-white transition-colors disabled:opacity-40"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-[11px] font-mono px-1 text-sand-300">
+            {Math.round(zoomScale * 100)}%
+          </span>
+          <button
+            onClick={handleZoomIn}
+            disabled={!hasCode || zoomScale >= 1.45}
+            title="Zoom In"
+            className="p-1 rounded-lg text-sand-400 hover:text-white transition-colors disabled:opacity-40"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Viewport Switcher */}
         <div className="hidden sm:flex items-center gap-1 bg-darkcanvas p-1 rounded-xl border border-warm-800">
           <button
             onClick={() => setViewport('desktop')}
             disabled={!hasCode}
-            title="Desktop Viewport (100% Full Width)"
+            title="Desktop Viewport"
             className={`p-1 rounded-lg transition-colors disabled:opacity-40 ${
               viewport === 'desktop' && hasCode ? 'bg-warm-800 text-sand-100' : 'text-sand-400 hover:text-white'
             }`}
@@ -144,6 +187,16 @@ const CustomSandpackToolbar = ({
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-sand-400" />}
           <span>{copied ? 'Copied' : 'Copy Code'}</span>
         </button>
+
+        {/* Fullscreen Toggle Button */}
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          disabled={!hasCode}
+          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Canvas'}
+          className="p-1.5 rounded-xl bg-darkcanvas hover:bg-warm-900 text-sand-300 border border-warm-800 text-xs font-sans transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-amber-500" /> : <Maximize2 className="w-3.5 h-3.5 text-sand-400" />}
+        </button>
       </div>
     </div>
   );
@@ -155,6 +208,8 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
   const [key, setKey] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [stepIndex, setStepIndex] = useState<number>(0);
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   useEffect(() => {
     let interval: any = null;
@@ -169,6 +224,7 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
 
   const handleResetPreview = () => {
     setKey((prev) => prev + 1);
+    setZoomScale(1.0);
     handleTriggerToast('Preview state reset');
   };
 
@@ -180,8 +236,8 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
   const hasCode = Boolean(code && code.trim().length > 0);
 
   return (
-    <div className="h-full w-full flex flex-col bg-darkcanvas overflow-hidden relative font-sans">
-      {/* Sleek Minimal Toolbar */}
+    <div className={`h-full w-full flex flex-col bg-darkcanvas overflow-hidden relative font-sans ${isFullscreen ? 'fixed inset-0 z-50 bg-darkcanvas' : ''}`}>
+      {/* Top Toolbar */}
       <CustomSandpackToolbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -191,6 +247,10 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
         onResetPreview={handleResetPreview}
         hasCode={hasCode}
         onTriggerToast={handleTriggerToast}
+        zoomScale={zoomScale}
+        setZoomScale={setZoomScale}
+        isFullscreen={isFullscreen}
+        setIsFullscreen={setIsFullscreen}
       />
 
       {/* Floating Toast Notification */}
@@ -262,9 +322,10 @@ export const CodeCanvas: React.FC<CodeCanvasProps> = ({ code, isLoading = false 
             <motion.div
               animate={{
                 maxWidth: viewport === 'mobile' ? '375px' : '100%',
+                scale: zoomScale,
               }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className={`w-full h-full ${
+              className={`w-full h-full transform-gpu ${
                 viewport === 'mobile'
                   ? 'my-4 h-[calc(100%-2rem)] border-[8px] border-warm-850 rounded-[32px] shadow-2xl overflow-hidden'
                   : 'w-full h-full'

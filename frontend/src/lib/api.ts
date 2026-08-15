@@ -39,7 +39,7 @@ export async function generateMicroApp(
   currentCode?: string
 ): Promise<GenerateResult> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000); // 90-second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120-second timeout
 
   try {
     const res = await fetch(`${API_BASE_URL}/api/generate`, {
@@ -67,7 +67,7 @@ export async function generateMicroApp(
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error('Generation timed out after 90 seconds. Please try again with a shorter prompt.');
+      throw new Error('Generation timed out after 120 seconds. Please try again with a shorter prompt.');
     }
     console.error('Generation call failed:', err);
     throw err;
