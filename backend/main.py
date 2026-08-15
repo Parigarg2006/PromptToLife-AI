@@ -27,6 +27,14 @@ class GenerateRequest(BaseModel):
     template_id: Optional[str] = None
     current_code: Optional[str] = None
 
+candidate_models = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-3.5-flash"
+]
+
 @app.post("/api/generate")
 async def generate_app(req: GenerateRequest):
     api_key = os.getenv("GEMINI_API_KEY")
@@ -57,17 +65,27 @@ async def generate_app(req: GenerateRequest):
         if req.current_code and req.current_code.strip():
             user_content += f"\n\nExisting React Code to Modify:\n{req.current_code}"
 
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash",
-                contents=f"{system_prompt}\n\nUser Prompt: {user_content}"
-            )
-        except Exception:
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=f"{system_prompt}\n\nUser Prompt: {user_content}"
-            )
+        full_prompt = f"{system_prompt}\n\nUser Prompt: {user_content}"
         
+        response = None
+        last_error = None
+
+        for model_name in candidate_models:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=full_prompt
+                )
+                if response and response.text:
+                    print(f"Successfully generated using model: {model_name}")
+                    break
+            except Exception as model_err:
+                last_error = model_err
+                print(f"Model {model_name} failed: {model_err}, trying candidate fallback...")
+
+        if not response or not response.text:
+            raise last_error or Exception("All candidate models failed to generate content.")
+
         code = response.text or ""
         
         # Clean backticks
