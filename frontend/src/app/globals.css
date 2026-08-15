@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-darkcanvas text-sand-100 font-sans antialiased overflow-x-hidden selection:bg-terracotta-600 selection:text-white;
+    background-image: 
+      radial-gradient(ellipse at 20% -10%, rgba(234, 88, 12, 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 110%, rgba(99, 102, 241, 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
+    background-size: 160% 160%;
+    animation: aurora 18s ease infinite alternate;
+  }
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0c0e;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e232e;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ea580c;
+}
+
+/* Sandpack full height layout fixes */
+.sp-wrapper {
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.sp-layout {
+  height: 100% !important;
+  width: 100% !important;
+  flex: 1 !important;
+  border: none !important;
+  background: #0b0c0e !important;
+  border-radius: 0 !important;
+  display: flex !important;
+}
+.sp-stack {
+  height: 100% !important;
+  width: 100% !important;
+  flex: 1 !important;
+}
+.sp-preview-container {
+  background: #0b0c0e !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+.sp-preview-iframe {
+  height: 100% !important;
+  width: 100% !important;
+  background: #0b0c0e !important;
+}
+.sp-code-editor {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 13px !important;
+  height: 100% !important;
+  background: #11141b !important;
+}
+
+/* Linear-inspired input container */
+.claude-input-card {
+  background: rgba(17, 19, 24, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.claude-input-card:focus-within {
+  border-color: rgba(234, 88, 12, 0.65);
+  box-shadow: 0 0 0 1px rgba(234, 88, 12, 0.4), 0 12px 35px rgba(234, 88, 12, 0.12);
+}
