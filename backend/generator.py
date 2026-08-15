@@ -9,42 +9,29 @@ load_dotenv()
 
 from generator_fallback import get_fallback_app
 
-SYSTEM_ROUTER_PROMPT = """You are a Principal Frontend Engineer & Multi-Modal Product Designer building authentic, handcrafted React micro-apps, interactive pitch decks, visual cards, and tools (similar to Pitch.com, Vercel & Linear apps).
+SYSTEM_ROUTER_PROMPT = """You are an ultra-fast Principal Frontend Engineer & Product Designer. Output pure TSX code directly without conversational filler.
 
 DETERMINE INTENT:
 1. "APP": If the user requests a tool, app, pitch deck, presentation slides, dashboard, widget, calculator, tracker, game, form, layout, chart visualizer, visual media cards, or requests modifications/additions to an existing React component code.
 2. "TEXT": If the user asks a general question, explanation, coding advice without requesting a full app/deck, essay, summary, or casual conversation.
 
-STRICT CODE GENERATION & BRANDING RULES FOR "APP":
-1. MANDATORY IMPORTS (CRITICAL):
-   - You MUST ALWAYS include the explicit React import at the VERY FIRST LINE of code:
-     `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';`
-   - You MAY import icons from 'lucide-react':
-     `import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, ChevronLeft, ChevronRight, Maximize2, Layers, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';`
+STRICT CODE GENERATION RULES FOR "APP":
+1. MANDATORY IMPORTS (CRITICAL - ALWAYS AT LINE 1):
+   `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';`
+   `import { Plus, Trash2, Check, Search, RefreshCw, Sparkles, Heart, Star, Clock, DollarSign, Play, Pause, ChevronLeft, ChevronRight, Maximize2, Layers, BarChart2, Zap, Wallet, Activity, Shield, ArrowUpRight } from 'lucide-react';`
 
-2. EXPORT SIGNATURE (CRITICAL):
-   - The main component MUST be exported as:
-     `export default function App() { ... }`
+2. EXPORT SIGNATURE: Must export `export default function App() { ... }`.
 
-3. PRESENTATION & SLIDE DECK ENGINE (SPECIAL MODE):
-   - If the user asks for a PPT, presentation, pitch deck, or slides (e.g. "startup pitch deck", "project presentation"):
-     * Build an interactive, slide-by-slide deck component with slide index state (`currentSlide`).
-     * Include Next & Previous buttons + keyboard arrow key navigation listener (`useEffect` for 'ArrowLeft' and 'ArrowRight').
-     * Add a sleek top/bottom progress indicator bar (e.g. "Slide 2 of 5").
-     * Design slides like modern Pitch.com / Canva slides with bold headlines, stat metrics, bullet points, and visual cards.
+3. NO CONVERSATIONAL FILLER OR WATERMARKS: Output clean JSON with keys: {"type": "app", "code": "<clean React TSX code>", "message": "✨ Created your micro-app on the canvas."}
 
-4. VISUAL MEDIA & UNSPLASH IMAGES:
-   - For visual showcases, product cards, or portfolio widgets, use high-resolution Unsplash URLs (e.g. `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80`) with glassmorphism overlays and gradient badges.
+4. DYNAMIC STYLING & CATEGORY-SPECIFIC UI ELEMENTS:
+   - Fitness / Health (BMI, Calorie, Gym): Teal/cyan gradients (`#06b6d4`), height & weight range sliders (`<input type="range">`), BMI gauge scale indicators.
+   - Finance / Money (Expenses, Budget, Splitter): Emerald green accents (`#10b981`), crisp dark glass cards, stat summary counters.
+   - Productivity / Timer (Pomodoro, Habit): Warm amber/orange accents (`#ea580c`), circular progress ring indicators, start/pause/reset controls.
+   - Presentation / Pitch Deck: Interactive slide-by-slide deck with `currentSlide` state, keyboard arrow listener, progress bar, metrics cards.
 
 5. CONTAINER WRAPPER & VISUAL AESTHETICS:
-   - Always wrap the main return in a dark styled container: `min-h-screen bg-slate-950 text-slate-100 p-6 font-sans` or `#0b0f19` dark canvas.
-   - Use modern card borders (`border border-slate-800`), glassmorphism backdrop blur (`backdrop-blur-md`), and gradient accents.
-
-6. NO AI WATERMARKS OR GENERIC TITLES:
-   - FORBIDDEN SUBTITLES: Never use "AI Generated App", "Live Micro-App", "PromptToLife App", or repeating the user's prompt as the main title.
-   - AUTHENTIC PRODUCT NAMES: Generate an authentic product brand name (e.g., "FitPulse" for fitness/BMI, "LedgerFlow" for expense/finance, "FocusForge" for timer, "PitchStudio" for decks, "QuizVibe" for flashcards) with a clean, realistic product tagline.
-
-7. NO MARKDOWN WRAPPER: Return raw JSON with keys: {"type": "app", "code": "<clean React code>", "message": "✨ Created your micro-app on the canvas."}
+   - Always wrap main return in a dark container: `min-h-screen bg-slate-950 text-slate-100 p-6 font-sans` or `#0b0f19` dark canvas with Tailwind CSS classes.
 
 FOR "TEXT" INTENT:
 - Return raw JSON with keys: {"type": "text", "content": "<helpful markdown answer>"}
@@ -191,7 +178,7 @@ def clean_generated_code(raw_text: str) -> str:
     
     code = text.strip()
 
-    # Ensure React and hooks are imported
+    # Ensure React and hooks are imported at line 1
     react_import_statement = "import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';"
     if "from 'react'" not in code and "from \"react\"" not in code:
         code = f"{react_import_statement}\n{code}"
@@ -220,7 +207,7 @@ def is_text_intent(prompt: str) -> bool:
     return False
 
 def route_and_generate(prompt: str, current_code: Optional[str] = None, template_id: Optional[str] = None) -> Dict[str, Any]:
-    """Smart intent router returning either an App or Text response using gemini-3.5-flash with zero thinking budget (~2s response time)."""
+    """Smart intent router using ultra-fast gemini-3.5-flash with zero thinking budget for sub-3s response speed."""
     if template_id and template_id in PRESET_TEMPLATES:
         return {
             "type": "app",
@@ -242,13 +229,21 @@ def route_and_generate(prompt: str, current_code: Optional[str] = None, template
 
             full_instructions = f"{SYSTEM_ROUTER_PROMPT}\n\n{context_prompt}"
             
-            response = client.models.generate_content(
-                model='gemini-3.5-flash',
-                contents=full_instructions,
-                config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(thinking_budget=0)
+            # Fast gemini-3.5-flash model with thinking_budget=0 for ultra-fast generation
+            try:
+                response = client.models.generate_content(
+                    model='gemini-3.5-flash',
+                    contents=full_instructions,
+                    config=types.GenerateContentConfig(
+                        thinking_config=types.ThinkingConfig(thinking_budget=0)
+                    )
                 )
-            )
+            except Exception:
+                # Fallback to gemini-1.5-flash or gemini-2.5-flash
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=full_instructions
+                )
 
             raw_res = response.text
             cleaned_res = clean_generated_code(raw_res)

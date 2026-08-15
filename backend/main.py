@@ -20,8 +20,8 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 app = FastAPI(
     title="PromptToLife AI API",
-    description="Production-ready backend with SlowAPI rate limiting & concurrency queueing.",
-    version="1.3.0"
+    description="Production-ready backend with SlowAPI rate limiting & 90s concurrency queueing.",
+    version="1.4.0"
 )
 
 # Attach limiter to FastAPI state and exception handler
@@ -62,10 +62,11 @@ class GenerateResponse(BaseModel):
 def read_root():
     return {
         "service": "PromptToLife AI API",
-        "version": "1.3.0",
+        "version": "1.4.0",
         "status": "production_ready",
         "rate_limit": "10/minute per IP on /api/generate",
-        "max_concurrency": 10
+        "max_concurrency": 10,
+        "timeout_limit": "90s"
     }
 
 @app.get("/api/health")
@@ -73,8 +74,9 @@ def health_check():
     return {
         "status": "ok",
         "service": "PromptToLife AI Backend",
-        "version": "1.3.0",
-        "concurrency_limit": 10
+        "version": "1.4.0",
+        "concurrency_limit": 10,
+        "timeout_limit": "90s"
     }
 
 @app.get("/api/templates")
@@ -92,12 +94,12 @@ def get_templates():
 @app.post("/api/generate", response_model=GenerateResponse)
 @limiter.limit("10/minute")
 async def generate_endpoint(request: Request, req: GenerateRequest):
-    """Production endpoint with SlowAPI rate limiting (10 req/min) & Semaphore queueing (max 10 concurrent)."""
+    """Production endpoint with SlowAPI rate limiting (10 req/min) & Semaphore queueing (max 10 concurrent, 90s timeout)."""
     if not req.prompt and not req.template_id:
         raise HTTPException(status_code=400, detail="Prompt or template_id is required.")
 
     try:
-        # Queue request through Semaphore with a generous 45-second timeout
+        # Queue request through Semaphore with a 90-second timeout
         async with GENERATION_SEMAPHORE:
             result = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -106,7 +108,7 @@ async def generate_endpoint(request: Request, req: GenerateRequest):
                     current_code=req.current_code,
                     template_id=req.template_id
                 ),
-                timeout=45.0
+                timeout=90.0
             )
 
         return GenerateResponse(
@@ -120,7 +122,7 @@ async def generate_endpoint(request: Request, req: GenerateRequest):
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=504,
-            detail="Generation request timed out. Please try again with a shorter prompt."
+            detail="Generation request timed out after 90 seconds. Please try again with a shorter prompt."
         )
     except RateLimitExceeded:
         raise HTTPException(
