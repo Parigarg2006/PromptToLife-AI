@@ -117,6 +117,12 @@ export default function Home() {
     }
   };
 
+  const handleClearHistory = () => {
+    setMessages([]);
+    setCurrentCode('');
+    setErrorMsg(null);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-warm-950 text-sand-100 overflow-hidden font-sans">
       {/* Editorial Header */}
@@ -132,6 +138,7 @@ export default function Home() {
             templates={templates}
             errorMsg={errorMsg}
             messages={messages}
+            onClearHistory={handleClearHistory}
           />
         </div>
 
