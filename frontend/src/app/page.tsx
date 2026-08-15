@@ -15,37 +15,39 @@ import {
  * Robust code extractor ensuring Sandpack receives pure TSX code
  * without raw JSON strings or markdown fence wrappers.
  */
-function extractPureCode(rawPayload: string): string {
+function extractPureCode(rawPayload: any): string {
   if (!rawPayload) return '';
-  let str = rawPayload.strip ? rawPayload.strip() : rawPayload.trim();
+  let cleanCode: any = rawPayload;
 
-  // Strip outer markdown fence wrappers
-  const fenceRegex = /```(?:jsx|tsx|javascript|typescript|js|ts|json)?\s*([\s\S]*?)\s*```/g;
-  const match = fenceRegex.exec(str);
-  if (match && match[1]) {
-    str = match[1].trim();
-  } else {
-    str = str.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
-  }
-
-  // Attempt JSON parsing if raw payload is a stringified JSON object
-  if (str.startsWith('{') && str.endsWith('}')) {
+  // 1. If it's an object, extract .code or .component
+  if (typeof cleanCode === 'object' && cleanCode !== null) {
+    cleanCode = cleanCode.code || cleanCode.component || '';
+  } else if (typeof cleanCode === 'string') {
+    // 2. If it is a stringified JSON like {"type": "app", "code": "..."}, parse it
     try {
-      const parsed = JSON.parse(str);
-      if (parsed && typeof parsed.code === 'string') {
-        return extractPureCode(parsed.code);
+      const parsed = JSON.parse(cleanCode);
+      if (parsed && typeof parsed === 'object') {
+        cleanCode = parsed.code || parsed.component || cleanCode;
       }
     } catch {
-      // Continue if not valid JSON
+      // Not stringified JSON, proceed normally
     }
   }
 
-  // Ensure React import line is present at the very top
-  if (!str.includes("from 'react'") && !str.includes('from "react"')) {
-    str = `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';\n${str}`;
+  // 3. Strip markdown code fences if present (```tsx, ```jsx, ```json, ```)
+  if (typeof cleanCode === 'string') {
+    cleanCode = cleanCode
+      .replace(/^```[a-zA-Z]*\n/gm, '')
+      .replace(/```$/gm, '')
+      .trim();
   }
 
-  return str;
+  // 4. Ensure React import line is present at the very top
+  if (typeof cleanCode === 'string' && !cleanCode.includes("from 'react'") && !cleanCode.includes('from "react"')) {
+    cleanCode = `import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';\n${cleanCode}`;
+  }
+
+  return typeof cleanCode === 'string' ? cleanCode.trim() : '';
 }
 
 export default function Home() {
