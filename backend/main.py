@@ -123,7 +123,7 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
     return {
         "status": "success", 
         "filename": file.filename, 
-        "file_url": f"http://localhost:8000/files/{unique_filename}",
+        "file_url": f"/files/{unique_filename}",
         "message": "File indexed successfully"
     }
 

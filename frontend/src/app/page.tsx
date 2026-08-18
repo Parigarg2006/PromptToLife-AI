@@ -26,6 +26,8 @@ interface ChatSession {
   updatedAt: number;
 }
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const AVAILABLE_MODELS = [
   { id: 'llama-3.3-70b-versatile', name: '⚡ Llama 3.3 70B (Fast & Smart)', desc: 'Best overall balance of speed and intelligence' },
   { id: 'deepseek-r1-distill-llama-70b', name: '💡 DeepSeek R1 (Deep Reasoning)', desc: 'Advanced math, coding, and logical thinking' },
@@ -102,7 +104,7 @@ export default function App() {
 
   const fetchSummary = async (filename: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/summary/${encodeURIComponent(filename)}`);
+      const res = await fetch(`${BACKEND_URL}/api/summary/${encodeURIComponent(filename)}`);
       const data = await res.json();
       if (data.summary) {
         setExecSummary(data.summary);
@@ -120,14 +122,17 @@ export default function App() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('http://localhost:8000/api/upload', {
+      const res = await fetch(`${BACKEND_URL}/api/upload`, {
         method: 'POST',
         body: formData
       });
       const data = await res.json();
       if (res.ok) {
         setUploadedFile(file.name);
-        if (data.file_url) setUploadedFileUrl(data.file_url);
+        if (data.file_url) {
+          const fullUrl = data.file_url.startsWith('http') ? data.file_url : `${BACKEND_URL}${data.file_url}`;
+          setUploadedFileUrl(fullUrl);
+        }
         
         confetti({
           particleCount: 70,
@@ -203,7 +208,7 @@ export default function App() {
         content: m.text
       }));
 
-      const res = await fetch('http://localhost:8000/api/chat/stream', {
+      const res = await fetch(`${BACKEND_URL}/api/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -274,7 +279,7 @@ export default function App() {
             ...s,
             messages: s.messages.map(m => m.id === aiMsgId ? { 
               ...m, 
-              text: 'Error connecting to backend on http://localhost:8000. Please ensure FastAPI server is running.' 
+              text: `Error connecting to backend on ${BACKEND_URL}. Please ensure FastAPI server is running.` 
             } : m)
           };
         }

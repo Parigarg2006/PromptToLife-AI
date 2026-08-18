@@ -1,164 +1,135 @@
-# ⚡ PromptToLife AI (Micro-App Studio)
+# 🚀 PromptToLife | Enterprise Multimodal RAG Assistant
 
-> **Instant natural language to live interactive React micro-apps sandboxed in-browser.**
+![PromptToLife Banner](https://img.shields.io/badge/PromptToLife-Enterprise%20RAG-amber?style=for-the-badge&logo=react)
+![Next.js 14](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)
+![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)
+![Groq AI](https://img.shields.io/badge/AI%20Engine-Groq%20Llama%203.3-orange?style=for-the-badge)
+![ChromaDB](https://img.shields.io/badge/VectorDB-ChromaDB-blue?style=for-the-badge)
 
-[![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini-3.5_Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
-[![CodeSandbox Sandpack](https://img.shields.io/badge/Sandpack-React_Sandbox-151515?style=for-the-badge&logo=codesandbox)](https://sandpack.codesandbox.io/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
-
----
-
-## 📖 Overview
-
-**PromptToLife AI** is a full-stack, real-time AI Micro-App Studio inspired by Claude Artifacts, Vercel v0, and Linear. It enables users to describe any interactive app idea (e.g. *Trip Budget Calculators, Fitness Trackers, Flashcard Quiz Arenas, Pomodoro Hubs*) in plain English and instantly compiles, runs, and renders pure React code live in an isolated browser sandbox.
+**PromptToLife** is a state-of-the-art, enterprise-grade AI Knowledge Assistant powered by ultra-low-latency **Groq AI inference**, **LangChain RAG document intelligence**, **ChromaDB vector embeddings**, and a **Next.js 14 glassmorphism interface**.
 
 ---
 
-## ✨ Key Features
+## 🌟 Key Features
 
-- **⚡ Instant Real-Time Synthesis**: Powered by Google Gemini 3.5 Flash (`thinking_budget=0`) to deliver sub-3s code generation response times.
-- **📱 Live Sandpack Sandbox**: In-browser execution of React, TypeScript, Tailwind CSS, and Lucide icons without requiring backend compilation servers.
-- **🖥️ Responsive Device Switcher**: Seamlessly toggle between Desktop (100% full-width) and Mobile (375px centered container) viewports with smooth Framer Motion spring physics.
-- **🔄 Iterative Chat & Code Refinement**: Maintains conversational code context so follow-up prompts modify active React components dynamically instead of starting from scratch.
-- **🛡️ Production Hardening**: Built with SlowAPI rate-limiting (`10 req/min/IP`) and `asyncio.Semaphore(10)` concurrency queues to protect against high traffic spikes.
-- **📋 One-Click Copy**: Copy pure React component code directly to clipboard.
+- **⚡ Real-Time Token Streaming**: Server-Sent Events (SSE) stream responses token-by-token with zero buffering.
+- **📚 PDF Knowledge RAG**: Upload PDF documents to generate vector embeddings (`all-MiniLM-L6-v2`) with page-precise grounded citations.
+- **📊 Auto Executive Summaries**: Ingested PDFs automatically generate a 3-bullet executive summary using Groq LLMs.
+- **🤖 Multi-Model Selector**: Dynamically switch between **Llama 3.3 70B**, **DeepSeek R1**, **Llama 3.1 8B**, and **Mixtral 8x7B**.
+- **🎙️ Voice Input (Speech-to-Text)**: Speak your prompts directly using browser Web Speech API.
+- **🔊 Text-to-Speech (Read Aloud)**: Listen to AI responses with Web Speech Synthesis.
+- **📖 In-App PDF Preview Drawer**: Click page citation tags (`[Source (Page X)]`) to preview document pages inside an embedded drawer.
+- **💾 Session Memory & Persistence**: LocalStorage multi-turn conversation memory with history sidebar.
+- **📥 1-Click Chat Export**: Download complete chat transcripts as formatted `.md` Markdown files.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## 🏗️ Architecture
 
-```
-           ┌──────────────────────────────────────────────┐
-           │            Next.js App Router                │
-           │       TypeScript + Tailwind CSS              │
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │        FastAPI Server (Python 3.11+)         │
-           │      SlowAPI + asyncio.Semaphore(10)         │
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │        Google Gemini 3.5 Flash AI            │
-           │     (google-genai Python SDK Engine)         │
-           └──────────────────────────────────────────────┘
+```mermaid
+graph TD
+    User([User Interface - Next.js 14]) -->|Speech / Text Input| Frontend[Frontend React State]
+    Frontend -->|POST /api/chat/stream| FastAPI[FastAPI Backend Server]
+    Frontend -->|POST /api/upload| FastAPI
+    
+    FastAPI -->|Extract Chunks & Embed| LangChain[LangChain & PyPDFLoader]
+    LangChain -->|Store Vectors| ChromaDB[(ChromaDB Vector Store)]
+    
+    FastAPI -->|Similarity Search| ChromaDB
+    ChromaDB -->|Relevant Context & Citations| FastAPI
+    
+    FastAPI -->|Stream Inference| Groq[Groq Llama 3.3 / DeepSeek R1]
+    Groq -->|SSE Tokens| Frontend
 ```
 
-### **Frontend**:
-- **Framework**: Next.js 14 (App Router) + TypeScript
-- **Styling**: Tailwind CSS, Frosted Glassmorphism, Dark Mesh Gradient Aurora
-- **Sandbox Runner**: `@codesandbox/sandpack-react`
-- **Animations**: `framer-motion`
-- **Icons**: `lucide-react`
+---
 
-### **Backend**:
-- **Framework**: FastAPI + Uvicorn
-- **AI Model**: Google Gemini 3.5 Flash (`google-genai` SDK)
-- **Rate Limiting**: `slowapi` (10 requests/minute per IP)
-- **Concurrency**: `asyncio.Semaphore(10)` with 45-second fallback guards
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router, Client Components)
+- **Styling**: Tailwind CSS, Vanilla CSS Glassmorphism
+- **Icons**: Lucide React Icons
+- **Markdown & Code**: `react-markdown`, `remark-gfm`
+- **Effects**: `canvas-confetti`
+
+### Backend
+- **Framework**: FastAPI, Uvicorn, Pydantic
+- **AI Inference Engine**: Groq Cloud Python SDK (`llama-3.3-70b-versatile`, `deepseek-r1-distill-llama-70b`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`)
+- **Orchestration & Vector Store**: LangChain, ChromaDB, Sentence Transformers (`all-MiniLM-L6-v2`)
+- **PDF Processing**: `pypdf`, `PyPDFLoader`, `RecursiveCharacterTextSplitter`
+- **Streaming**: `sse-starlette`, `StreamingResponse`
 
 ---
 
-## 🚀 Local Setup & Installation
+## 🚀 Quickstart Guide
 
-### 1. Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **Python**: v3.11 or higher
-- **Google Gemini API Key**: Get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
+### Prerequisites
+- Node.js v18+
+- Python 3.10+
+- Groq API Key ([console.groq.com](https://console.groq.com))
 
 ---
 
-### 2. Backend Setup (FastAPI)
+### 1. Backend Setup
 
 ```bash
-# Navigate to backend directory
 cd backend
 
-# Create virtual environment
+# Create virtual environment (optional)
 python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install fastapi uvicorn pydantic python-dotenv chromadb langchain langchain-community sentence-transformers pypdf groq python-multipart sse-starlette
 
-# Create .env file from template
-cp .env.example .env
+# Create backend/.env file
+echo "GROQ_API_KEY=gsk_your_groq_api_key_here" > .env
+
+# Run FastAPI server
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Open `backend/.env` and add your Google Gemini API key:
-```env
-PORT=8000
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-Start the FastAPI backend server:
-```bash
-python -m uvicorn main:app --port 8000 --reload
-```
+FastAPI server runs on **`http://localhost:8000`**.
 
 ---
 
-### 3. Frontend Setup (Next.js)
+### 2. Frontend Setup
 
 ```bash
-# Open a new terminal and navigate to frontend directory
 cd frontend
 
-# Install npm packages
+# Install dependencies
 npm install
 
-# Run dev server
+# Run Next.js dev server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to start using PromptToLife AI!
+Next.js frontend runs on **`http://localhost:3000`**.
 
 ---
 
-## 📁 Repository Structure
+## 📡 API Reference
 
-```
-PromptToLife-AI/
-├── frontend/                 # Next.js App Router Client
-│   ├── src/
-│   │   ├── app/              # Layout, Global CSS, Page Entry Point
-│   │   ├── components/       # Header, PromptPanel, CodeCanvas, PresetPills
-│   │   └── lib/              # API Client Services
-│   ├── package.json
-│   └── tailwind.config.js
-│
-├── backend/                  # FastAPI Server
-│   ├── main.py               # Rate limiting, CORS, Semaphore API routes
-│   ├── generator.py          # Gemini 3.5 Flash AI synthesis engine
-│   ├── generator_fallback.py # Local fallback intent router
-│   ├── requirements.txt      # Python dependencies
-│   ├── .env.example          # Environment variable template
-│   └── .env                  # Environment variables (gitignored)
-│
-├── .gitignore                # Root gitignore protecting secrets & build files
-└── README.md                 # Project Documentation
-```
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/health` | `GET` | Health check endpoint returning `{"status": "ok"}` |
+| `/api/upload` | `POST` | Ingests PDF file, splits chunks, indexes into ChromaDB & triggers auto-summary |
+| `/api/summary/{filename}` | `GET` | Fetches auto-generated executive summary for uploaded PDF |
+| `/api/chat/stream` | `POST` | Real-time SSE token streaming with document context & conversation history |
+| `/files/{filename}` | `GET` | Serves uploaded PDF files for in-app previewing |
+
+---
+
+## 🛡️ Security & Environment Variables
+
+- `.env` files are ignored by git (`.gitignore`).
+- Frontend automatically points to `process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'`.
+- Backend uses `os.getenv("GROQ_API_KEY")` with dynamic fallback routing to prevent 404 errors.
 
 ---
 
 ## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-## 👤 Author
-
-**Pari Garg**  
-- GitHub: [@Parigarg2006](https://github.com/Parigarg2006)  
-- Repository: [PromptToLife-AI](https://github.com/Parigarg2006/PromptToLife-AI)

@@ -4,28 +4,26 @@
 .env.*.local
 *.env
 
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Testing & Coverage
-coverage
-
-# Next.js build output
-.next/
-out/
-build/
-dist/
-
-# Python & Pycache
+# Python & Vector Storage
 __pycache__/
 *.py[cod]
 *$py.class
+chroma_db/
+uploaded_docs/
 venv/
 .venv/
 env/
 .env/
+
+# Dependencies & Build Output
+node_modules/
+.next/
+dist/
+build/
+out/
+.pnp
+.pnp.js
+coverage
 
 # IDE / OS
 .DS_Store
