@@ -1,35 +1,70 @@
 'use client';
 
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Sparkles, Plus, Moon, Sun } from 'lucide-react';
 
 interface HeaderProps {
-  isBackendConnected: boolean;
+  isBackendConnected?: boolean;
+  onNewChat: () => void;
+  isDarkMode: boolean;
+  onToggleTheme: () => void;
+  hasMessages: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ isBackendConnected }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onNewChat,
+  isDarkMode,
+  onToggleTheme,
+  hasMessages,
+}) => {
   return (
-    <header className="h-14 border-b border-warm-800/80 bg-darkcanvas/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-50 select-none">
-      {/* Sleek Minimal Startup Brand */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-terracotta-600 p-0.5 shadow-md shadow-amber-500/15">
-          <div className="w-full h-full bg-darkcanvas rounded-[10px] flex items-center justify-center">
-            <Layers className="w-4 h-4 text-amber-500" />
-          </div>
+    <header className={`h-14 px-6 flex items-center justify-between sticky top-0 z-50 select-none transition-colors duration-200 ${
+      isDarkMode 
+        ? 'bg-zinc-950/80 text-zinc-100 border-b border-zinc-800/50 backdrop-blur-md' 
+        : 'bg-white/80 text-zinc-900 border-b border-zinc-200/80 backdrop-blur-md'
+    }`}>
+      {/* Brand: Clean Amber/Orange Icon + PromptToLife */}
+      <div className="flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
+          <Sparkles className="w-4 h-4 text-white" />
         </div>
-        <span className="font-serif text-lg font-medium text-sand-100 tracking-tight">
+        <span className="font-semibold text-base tracking-tight font-sans">
           PromptToLife
         </span>
       </div>
 
-      {/* Backend Status Pill */}
-      <div className="flex items-center gap-3 text-xs font-sans">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-darkcard/90 border border-warm-800 text-sand-400 backdrop-blur-sm shadow-sm">
-          <span className={`w-2 h-2 rounded-full ${isBackendConnected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-amber-500'}`} />
-          <span className="text-[11px] text-sand-300 font-medium">
-            {isBackendConnected ? 'FastAPI Active' : 'Local Engine'}
-          </span>
-        </div>
+      {/* Right Controls: Theme Toggle & New Chat Button */}
+      <div className="flex items-center gap-2">
+        {hasMessages && (
+          <button
+            onClick={onNewChat}
+            title="New Chat"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              isDarkMode
+                ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
+            }`}
+          >
+            <Plus className="w-3.5 h-3.5 text-amber-500" />
+            <span>New Chat</span>
+          </button>
+        )}
+
+        <button
+          onClick={onToggleTheme}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          className={`p-1.5 rounded-lg transition-all border ${
+            isDarkMode
+              ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800'
+              : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 border-zinc-200'
+          }`}
+        >
+          {isDarkMode ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-zinc-600" />
+          )}
+        </button>
       </div>
     </header>
   );
